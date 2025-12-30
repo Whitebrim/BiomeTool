@@ -34,7 +34,6 @@ import tornadofx.action
 import tornadofx.button
 import tornadofx.combobox
 import tornadofx.filterInput
-import tornadofx.fitToParentHeight
 import tornadofx.fitToParentSize
 import tornadofx.hbox
 import tornadofx.importStylesheet
@@ -75,6 +74,8 @@ class BiomeToolView : View("Biome Tool") {
     }
     
     private val biomeID = Label()
+    
+    private val coordsLabel = Label("0, 0")
     
     init {
         logger.info { "Initializing Terra platform..." }
@@ -151,11 +152,10 @@ class BiomeToolView : View("Biome Tool") {
             val worldPreview = tab("World Preview") {
                 vbox {
                     val top = hbox(6) {
-                        label("Pack") {
-                            padding = Insets(0.0, 0.0, 0.0, 8.0)
-                            alignment = Pos.CENTER
-                            fitToParentHeight()
-                        }
+                        alignment = Pos.CENTER_LEFT
+                        padding = Insets(4.0, 8.0, 4.0, 8.0)
+                        
+                        label("Pack")
                         
                         packSelection = combobox {
                             val configs = platform.configRegistry.keys().toList()
@@ -175,9 +175,7 @@ class BiomeToolView : View("Biome Tool") {
                         }
                         
                         label("Seed") {
-                            padding = Insets(0.0, 0.0, 0.0, 16.0)
-                            alignment = Pos.CENTER
-                            fitToParentHeight()
+                            padding = Insets(0.0, 0.0, 0.0, 12.0)
                         }
                         
                         seed = textfield {
@@ -191,6 +189,16 @@ class BiomeToolView : View("Biome Tool") {
                                 
                                 addBiomeViewTab(seedLong = random.nextLong())
                             }
+                        }
+                        
+                        label("Coordinates:") {
+                            padding = Insets(0.0, 0.0, 0.0, 12.0)
+                        }
+                        
+                        add(coordsLabel)
+                        
+                        label("Biome:") {
+                            padding = Insets(0.0, 0.0, 0.0, 12.0)
                         }
                         
                         add(biomeID)
@@ -258,12 +266,20 @@ class BiomeToolView : View("Biome Tool") {
                 fitToParentSize()
             }
             mapView.setOnMouseMoved {
+                // Convert screen coordinates to world coordinates
+                // screenPos = (worldPos - viewportOffset) * zoom
+                // worldPos = screenPos / zoom + viewportOffset
+                val worldX = (mapView.x + it.x / mapView.zoom).roundToInt()
+                val worldZ = (mapView.y + it.y / mapView.zoom).roundToInt()
+                
+                coordsLabel.text = "$worldX, $worldZ"
+                
                 biomeID.text = mapView.configPack
                     .biomeProvider
                     .getBiome(
-                        it.x.roundToInt() + mapView.x.roundToInt(),
+                        worldX,
                         0,
-                        it.y.roundToInt() + mapView.y.roundToInt(),
+                        worldZ,
                         mapView.seed
                              ).id
             }

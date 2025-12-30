@@ -8,9 +8,6 @@ import java.lang.ref.SoftReference
 import javafx.application.Platform
 import javafx.scene.Group
 import kotlinx.coroutines.CoroutineScope
-import tornadofx.doubleProperty
-import tornadofx.minusAssign
-import tornadofx.onChange
 
 class InternalMap(
     val scope: CoroutineScope,
@@ -19,75 +16,69 @@ class InternalMap(
                  ) : Group() {
     private val tiles: MutableMap<Long, SoftReference<MapTile>> = mutableMapOf()
     
-    private val centerX = doubleProperty(0.0)
-    private val centerY = doubleProperty(0.0)
-    
     private var isShouldUpdate: Boolean = true
     
-    private val centerListener = { _: Double ->
-        updateCenterInternal(centerX.get(), centerY.get())
-    }
+    // Viewport parameters (in world coordinates)
+    private var viewportX: Double = 0.0
+    private var viewportY: Double = 0.0
+    private var viewportWidth: Double = 800.0  // Default non-zero values
+    private var viewportHeight: Double = 600.0
+    private var viewportZoom: Double = 1.0
     
-    init {
-        centerX.onChange(centerListener)
-        centerY.onChange(centerListener)
-    }
-    
-    private fun updateCenterInternal(x: Double, y: Double) {
-        translateX = x * tileSize
-        translateY = y * tileSize
+    fun updateViewport(x: Double, y: Double, screenWidth: Double, screenHeight: Double, zoom: Double) {
+        viewportX = x
+        viewportY = y
+        // Convert screen dimensions to world dimensions
+        viewportWidth = if (screenWidth > 0) screenWidth / zoom else 800.0
+        viewportHeight = if (screenHeight > 0) screenHeight / zoom else 600.0
+        viewportZoom = zoom
         
         shouldUpdate()
     }
     
-    fun moveX(dx: Double) {
-        centerX -= dx
-    }
-    
-    fun moveY(dy: Double) {
-        centerY -= dy
-    }
-    
     private fun updateTiles() {
+        // Calculate visible tile range in world coordinates
+        // Tiles are positioned at (tileX * tileSize, tileY * tileSize) in world coords
         
-        val xMin = floorToInt(-1 * centerX.value) - 1
-        val yMin = floorToInt(-1 * centerY.value) - 1
-        val xMax = ceilToInt((-1 * centerX.value) + width) + 1
-        val yMax = ceilToInt((-1 * centerY.value) + height) + 1
+        val xMinTile = floorToInt(viewportX / tileSize) - 1
+        val yMinTile = floorToInt(viewportY / tileSize) - 1
+        val xMaxTile = ceilToInt((viewportX + viewportWidth) / tileSize) + 1
+        val yMaxTile = ceilToInt((viewportY + viewportHeight) / tileSize) + 1
         
-        for (x in xMin until xMax) {
-            for (y in yMin until yMax) {
-                val key = squash(x, y)
+        for (tileX in xMinTile..xMaxTile) {
+            for (tileY in yMinTile..yMaxTile) {
+                val key = squash(tileX, tileY)
                 
                 val ref = tiles[key]?.get()
                 
                 val tile = if (ref == null) {
-                    val tile = MapTile(MapTilePoint(x, y), this)
+                    val tile = MapTile(MapTilePoint(tileX, tileY), this)
                     tiles[key] = SoftReference(tile)
-                    
                     tile
                 } else {
                     ref
                 }
                 
-                if (!children.contains(tile))
+                if (!children.contains(tile)) {
                     children.add(tile)
-                
+                }
             }
         }
         
-        cleanupTiles()
+        cleanupTiles(xMinTile - 2, yMinTile - 2, xMaxTile + 2, yMaxTile + 2)
     }
     
-    private fun cleanupTiles() {
+    private fun cleanupTiles(xMin: Int, yMin: Int, xMax: Int, yMax: Int) {
         val toRemove = mutableListOf<MapTile>()
+        
         for (child in children) {
             if (child !is MapTile)
                 continue
             
-            val intersects = intersects(child.boundsInParent)
+            val tileX = (child.translateX / tileSize).toInt()
+            val tileY = (child.translateY / tileSize).toInt()
             
-            if (!intersects) {
+            if (tileX < xMin || tileX > xMax || tileY < yMin || tileY > yMax) {
                 toRemove.add(child)
             }
         }
@@ -105,13 +96,7 @@ class InternalMap(
     
     fun shouldUpdate() {
         isShouldUpdate = true
-        // calculateCenterCoords()
         this.isNeedsLayout = true
         Platform.requestNextPulse()
     }
-    
-    private val width: Double
-        get() = parent.layoutBounds.width / tileSize
-    private val height: Double
-        get() = parent.layoutBounds.height / tileSize
 }
