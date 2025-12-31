@@ -79,7 +79,7 @@ class BiomeToolView : View("Biome Tool") {
     
     init {
         logger.info { "Initializing Terra platform..." }
-        platform = BiomeToolPlatform // create and initialize platform
+        platform = BiomeToolPlatform
         platform.reload()
         logger.info { "Terra platform initialized successfully" }
     }
@@ -151,7 +151,7 @@ class BiomeToolView : View("Biome Tool") {
             
             val worldPreview = tab("World Preview") {
                 vbox {
-                    val top = hbox(6) {
+                    hbox(6) {
                         alignment = Pos.CENTER_LEFT
                         padding = Insets(4.0, 8.0, 4.0, 8.0)
                         
@@ -159,7 +159,6 @@ class BiomeToolView : View("Biome Tool") {
                         
                         packSelection = combobox {
                             val configs = platform.configRegistry.keys().toList()
-                            
                             items = configs.toObservable()
                             selectionModel.selectFirst()
                         }
@@ -175,7 +174,7 @@ class BiomeToolView : View("Biome Tool") {
                         }
                         
                         label("Seed") {
-                            padding = Insets(0.0, 0.0, 0.0, 12.0)
+                            padding = Insets(0.0, 0.0, 0.0, 16.0)
                         }
                         
                         seed = textfield {
@@ -186,19 +185,18 @@ class BiomeToolView : View("Biome Tool") {
                         button("Random Seed") {
                             action {
                                 seed.text = random.nextLong().toString()
-                                
                                 addBiomeViewTab(seedLong = random.nextLong())
                             }
                         }
                         
                         label("Coordinates:") {
-                            padding = Insets(0.0, 0.0, 0.0, 12.0)
+                            padding = Insets(0.0, 0.0, 0.0, 16.0)
                         }
                         
                         add(coordsLabel)
                         
                         label("Biome:") {
-                            padding = Insets(0.0, 0.0, 0.0, 12.0)
+                            padding = Insets(0.0, 0.0, 0.0, 16.0)
                         }
                         
                         add(biomeID)
@@ -224,14 +222,12 @@ class BiomeToolView : View("Biome Tool") {
                     """.trimIndent()
                 }
                 fitToParentSize()
-                
             }
             val console = tab("Console") {
                 vbox {
                     styleClass += "console"
                     add(consoleTextArea)
                     consoleTextArea.fitToParentSize()
-                    
                     fitToParentSize()
                 }
                 fitToParentSize()
@@ -243,9 +239,7 @@ class BiomeToolView : View("Biome Tool") {
     
     private fun reload() {
         platform.reload()
-        
         val configs = platform.configRegistry.keys().toList()
-        
         packSelection.items = configs.toObservable()
     }
     
@@ -266,9 +260,6 @@ class BiomeToolView : View("Biome Tool") {
                 fitToParentSize()
             }
             mapView.setOnMouseMoved {
-                // Convert screen coordinates to world coordinates
-                // screenPos = (worldPos - viewportOffset) * zoom
-                // worldPos = screenPos / zoom + viewportOffset
                 val worldX = (mapView.x + it.x / mapView.zoom).roundToInt()
                 val worldZ = (mapView.y + it.y / mapView.zoom).roundToInt()
                 
@@ -276,12 +267,8 @@ class BiomeToolView : View("Biome Tool") {
                 
                 biomeID.text = mapView.configPack
                     .biomeProvider
-                    .getBiome(
-                        worldX,
-                        0,
-                        worldZ,
-                        mapView.seed
-                             ).id
+                    .getBiome(worldX, 0, worldZ, mapView.seed)
+                    .id
             }
         }
     }
@@ -319,5 +306,4 @@ class BiomeToolView : View("Biome Tool") {
         val performance: Tab,
         val console: Tab,
                                    )
-    
 }

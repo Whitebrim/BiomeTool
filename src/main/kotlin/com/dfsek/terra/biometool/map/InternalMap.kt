@@ -18,32 +18,20 @@ class InternalMap(
     
     private var isShouldUpdate: Boolean = true
     
-    // Viewport parameters (in world coordinates)
-    private var viewportX: Double = 0.0
-    private var viewportY: Double = 0.0
-    private var viewportWidth: Double = 800.0  // Default non-zero values
-    private var viewportHeight: Double = 600.0
-    private var viewportZoom: Double = 1.0
+    private lateinit var viewport: Viewport
     
-    fun updateViewport(x: Double, y: Double, screenWidth: Double, screenHeight: Double, zoom: Double) {
-        viewportX = x
-        viewportY = y
-        // Convert screen dimensions to world dimensions
-        viewportWidth = if (screenWidth > 0) screenWidth / zoom else 800.0
-        viewportHeight = if (screenHeight > 0) screenHeight / zoom else 600.0
-        viewportZoom = zoom
-        
+    fun updateViewport(x: Double, y: Double, worldWidth: Double, worldHeight: Double) {
+        viewport = Viewport(x, y, worldWidth, worldHeight)
         shouldUpdate()
     }
     
     private fun updateTiles() {
-        // Calculate visible tile range in world coordinates
-        // Tiles are positioned at (tileX * tileSize, tileY * tileSize) in world coords
+        if (!::viewport.isInitialized) return
         
-        val xMinTile = floorToInt(viewportX / tileSize) - 1
-        val yMinTile = floorToInt(viewportY / tileSize) - 1
-        val xMaxTile = ceilToInt((viewportX + viewportWidth) / tileSize) + 1
-        val yMaxTile = ceilToInt((viewportY + viewportHeight) / tileSize) + 1
+        val xMinTile = floorToInt(viewport.x / tileSize) - TILE_BUFFER
+        val yMinTile = floorToInt(viewport.y / tileSize) - TILE_BUFFER
+        val xMaxTile = ceilToInt((viewport.x + viewport.width) / tileSize) + TILE_BUFFER
+        val yMaxTile = ceilToInt((viewport.y + viewport.height) / tileSize) + TILE_BUFFER
         
         for (tileX in xMinTile..xMaxTile) {
             for (tileY in yMinTile..yMaxTile) {
@@ -65,15 +53,15 @@ class InternalMap(
             }
         }
         
-        cleanupTiles(xMinTile - 2, yMinTile - 2, xMaxTile + 2, yMaxTile + 2)
+        cleanupTiles(xMinTile - CLEANUP_BUFFER, yMinTile - CLEANUP_BUFFER, 
+                     xMaxTile + CLEANUP_BUFFER, yMaxTile + CLEANUP_BUFFER)
     }
     
     private fun cleanupTiles(xMin: Int, yMin: Int, xMax: Int, yMax: Int) {
         val toRemove = mutableListOf<MapTile>()
         
         for (child in children) {
-            if (child !is MapTile)
-                continue
+            if (child !is MapTile) continue
             
             val tileX = (child.translateX / tileSize).toInt()
             val tileY = (child.translateY / tileSize).toInt()
@@ -98,5 +86,12 @@ class InternalMap(
         isShouldUpdate = true
         this.isNeedsLayout = true
         Platform.requestNextPulse()
+    }
+    
+    private data class Viewport(val x: Double, val y: Double, val width: Double, val height: Double)
+    
+    companion object {
+        private const val TILE_BUFFER = 1
+        private const val CLEANUP_BUFFER = 1
     }
 }

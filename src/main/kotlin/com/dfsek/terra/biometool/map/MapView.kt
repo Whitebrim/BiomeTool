@@ -6,6 +6,7 @@ import javafx.scene.shape.Rectangle
 import javafx.scene.transform.Scale
 import kotlinx.coroutines.CoroutineScope
 import tornadofx.onChange
+import kotlin.math.pow
 
 class MapView(
     scope: CoroutineScope,
@@ -16,24 +17,19 @@ class MapView(
     
     private val clip = Rectangle()
     
-    
     var x = 0.0
         private set
     var y = 0.0
         private set
     
-    var zoom = 1.0
-        private set
+    private var zoomLevel = 0.0
+    
+    val zoom: Double
+        get() = 2.0.pow(zoomLevel)
     
     val seed = tileGenerator.seed
     
     val configPack = tileGenerator.configPack
-    
-    companion object {
-        private const val MIN_ZOOM = 0.125
-        private const val MAX_ZOOM = 8.0
-        private const val ZOOM_FACTOR = 1.15
-    }
     
     private val scaleTransform = Scale(1.0, 1.0, 0.0, 0.0)
     
@@ -62,11 +58,9 @@ class MapView(
         }
         
         setOnMouseDragged { event ->
-            // Delta in screen pixels
             val deltaScreenX = event.x - mouseDragX
             val deltaScreenY = event.y - mouseDragY
             
-            // Convert to world coordinates (divide by zoom)
             x -= deltaScreenX / zoom
             y -= deltaScreenY / zoom
             
@@ -79,25 +73,20 @@ class MapView(
         setOnScroll { event ->
             val oldZoom = zoom
             
-            // Calculate new zoom level
-            zoom = if (event.deltaY > 0) {
-                (zoom * ZOOM_FACTOR).coerceAtMost(MAX_ZOOM)
-            } else {
-                (zoom / ZOOM_FACTOR).coerceAtLeast(MIN_ZOOM)
-            }
+            zoomLevel = (zoomLevel + if (event.deltaY > 0) ZOOM_STEP else -ZOOM_STEP)
+                .coerceIn(MIN_ZOOM_LEVEL, MAX_ZOOM_LEVEL)
             
-            if (oldZoom != zoom) {
-                // Zoom from center of screen
+            val newZoom = zoom
+            
+            if (oldZoom != newZoom) {
                 val centerX = width / 2
                 val centerY = height / 2
                 
-                // World coordinates of the center before zoom
                 val worldCenterX = x + centerX / oldZoom
                 val worldCenterY = y + centerY / oldZoom
                 
-                // Adjust x, y so the same world point stays at center after zoom
-                x = worldCenterX - centerX / zoom
-                y = worldCenterY - centerY / zoom
+                x = worldCenterX - centerX / newZoom
+                y = worldCenterY - centerY / newZoom
                 
                 updateMapTransform()
             }
@@ -105,25 +94,15 @@ class MapView(
     }
     
     private fun updateMapTransform() {
-        // Transform logic:
-        // We want: screenPos = (worldPos - viewportOffset) * zoom
-        // 
-        // Using Scale transform with pivot (0,0) applied first via transforms list,
-        // then translateX/Y applied after:
-        // screenPos = worldPos * zoom + translateX
-        // 
-        // So: translateX = -viewportOffset * zoom
+        val currentZoom = zoom
         
-        scaleTransform.x = zoom
-        scaleTransform.y = zoom
+        scaleTransform.x = currentZoom
+        scaleTransform.y = currentZoom
         
-        map.translateX = -x * zoom
-        map.translateY = -y * zoom
+        map.translateX = -x * currentZoom
+        map.translateY = -y * currentZoom
         
-        // Update visible area calculation in InternalMap
-        if (width > 0 && height > 0) {
-            map.updateViewport(x, y, width, height, zoom)
-        }
+        map.updateViewport(x, y, width / currentZoom, height / currentZoom)
     }
     
     override fun layoutChildren() {
@@ -132,7 +111,14 @@ class MapView(
         clip.width = width
         clip.height = height
         
-        // Always update transform on layout to ensure initial render works
-        updateMapTransform()
+        if (width > 0 && height > 0) {
+            updateMapTransform()
+        }
+    }
+    
+    companion object {
+        private const val MIN_ZOOM_LEVEL = -3.0  // 2^(-3) = 0.125
+        private const val MAX_ZOOM_LEVEL = 3.0   // 2^3 = 8.0
+        private const val ZOOM_STEP = 0.2
     }
 }
