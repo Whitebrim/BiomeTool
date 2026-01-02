@@ -10,6 +10,7 @@ import javafx.scene.shape.Rectangle
 import javafx.scene.transform.Scale
 import kotlinx.coroutines.CoroutineScope
 import tornadofx.onChange
+import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -126,6 +127,10 @@ class MapView(
         }
     }
     
+    private fun calculateLod(): Int {
+        return (-floor(zoomLevel)).toInt().coerceAtLeast(0)
+    }
+    
     private fun copyToClipboard(text: String) {
         val content = ClipboardContent().apply {
             putString(text)
@@ -142,7 +147,7 @@ class MapView(
         map.translateX = -x * currentZoom
         map.translateY = -y * currentZoom
         
-        map.updateViewport(x, y, width / currentZoom, height / currentZoom)
+        map.updateViewport(x, y, width / currentZoom, height / currentZoom, calculateLod())
     }
     
     override fun layoutChildren() {
@@ -157,8 +162,8 @@ class MapView(
     }
     
     companion object {
-        private const val MIN_ZOOM_LEVEL = -3.0  // 2^(-3) = 0.125
-        private const val MAX_ZOOM_LEVEL = 3.0   // 2^3 = 8.0
+        private const val MIN_ZOOM_LEVEL = -3.0
+        private const val MAX_ZOOM_LEVEL = 3.0
         private const val ZOOM_STEP = 0.2
     }
 }
