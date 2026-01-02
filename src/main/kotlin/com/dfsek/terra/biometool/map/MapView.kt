@@ -1,12 +1,17 @@
 package com.dfsek.terra.biometool.map
 
 import com.dfsek.terra.biometool.BiomeImageGenerator
+import javafx.scene.control.ContextMenu
+import javafx.scene.control.MenuItem
+import javafx.scene.input.Clipboard
+import javafx.scene.input.ClipboardContent
 import javafx.scene.layout.Region
 import javafx.scene.shape.Rectangle
 import javafx.scene.transform.Scale
 import kotlinx.coroutines.CoroutineScope
 import tornadofx.onChange
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 class MapView(
     scope: CoroutineScope,
@@ -33,6 +38,24 @@ class MapView(
     
     private val scaleTransform = Scale(1.0, 1.0, 0.0, 0.0)
     
+    private var contextMenuWorldX = 0
+    private var contextMenuWorldZ = 0
+    
+    private val contextMenu = ContextMenu().apply {
+        items.addAll(
+            MenuItem("Copy Coordinates").apply {
+                setOnAction {
+                    copyToClipboard("$contextMenuWorldX, $contextMenuWorldZ")
+                }
+            },
+            MenuItem("Copy Teleport Command").apply {
+                setOnAction {
+                    copyToClipboard("/tp @s $contextMenuWorldX ~ $contextMenuWorldZ")
+                }
+            }
+                    )
+    }
+    
     init {
         children += map
         map.transforms.add(scaleTransform)
@@ -53,6 +76,7 @@ class MapView(
         setClip(clip)
         
         setOnMousePressed { event ->
+            contextMenu.hide()
             mouseDragX = event.x
             mouseDragY = event.y
         }
@@ -71,6 +95,8 @@ class MapView(
         }
         
         setOnScroll { event ->
+            contextMenu.hide()
+            
             val oldZoom = zoom
             
             zoomLevel = (zoomLevel + if (event.deltaY > 0) ZOOM_STEP else -ZOOM_STEP)
@@ -91,6 +117,20 @@ class MapView(
                 updateMapTransform()
             }
         }
+        
+        setOnContextMenuRequested { event ->
+            contextMenuWorldX = (x + event.x / zoom).roundToInt()
+            contextMenuWorldZ = (y + event.y / zoom).roundToInt()
+            
+            contextMenu.show(this, event.screenX, event.screenY)
+        }
+    }
+    
+    private fun copyToClipboard(text: String) {
+        val content = ClipboardContent().apply {
+            putString(text)
+        }
+        Clipboard.getSystemClipboard().setContent(content)
     }
     
     private fun updateMapTransform() {
