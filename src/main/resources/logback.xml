@@ -65,11 +65,17 @@
             <pattern>%-7([%level]) %-48logger{48} - %msg{}%n{}%ex{full, DISPLAY_EX_EVAL}</pattern>
         </encoder>
     </appender>
+    <appender name="ReloadLog" class="com.dfsek.terra.biometool.logback.ReloadLogAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
 
     <logger level="DEBUG" name="com.dfsek.terra" additivity="false">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
         <appender-ref ref="JavaFXConsole"/>
+        <appender-ref ref="ReloadLog"/>
     </logger>
     <root level="INFO">
         <appender-ref ref="FILE"/>
